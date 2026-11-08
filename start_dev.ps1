@@ -15,3 +15,4 @@ Write-Host "  AegisTrust is launching in two dedicated terminal sessions!" -Fore
 Write-Host "  - Backend Swagger Docs: http://127.0.0.1:8000/docs" -ForegroundColor White
 Write-Host "  - Frontend Cyber UI:    http://localhost:3000" -ForegroundColor White
 Write-Host "======================================================================" -ForegroundColor Green
+

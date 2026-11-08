@@ -143,3 +143,4 @@ class ThreatGraphData(BaseModel):
     edges: List[GraphEdge] = []
     campaign_name: Optional[str] = None
     correlated_incidents_count: int = 0
+

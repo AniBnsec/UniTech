@@ -70,3 +70,4 @@ def test_blockchain_status_and_verify():
     assert verify_res.status_code == 200
     assert verify_res.json()["status"] == "VALID_AND_TAMPER_PROOF"
     assert verify_res.json()["details"]["report_hash"] == report_hash
+

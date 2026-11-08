@@ -150,3 +150,4 @@ class ThreatCorrelator:
 
 # Global singleton
 correlator = ThreatCorrelator()
+

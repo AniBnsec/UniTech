@@ -11,3 +11,4 @@ async def get_threat_graph(focus_domain: Optional[str] = None):
     Returns the correlated topological graph linking malicious domains, IPs, CAs, and campaigns.
     """
     return correlator.generate_correlation_graph(focus_domain=focus_domain)
+

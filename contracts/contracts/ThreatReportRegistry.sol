@@ -243,3 +243,4 @@ contract ThreatReportRegistry {
         return reportHashes.length;
     }
 }
+

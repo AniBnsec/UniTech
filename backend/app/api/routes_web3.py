@@ -32,3 +32,4 @@ async def get_blockchain_status():
         "is_connected": web3_service.w3.is_connected(),
         "zero_pii_policy": "ENFORCED: No raw URLs, personal names, or messages committed on-chain."
     }
+

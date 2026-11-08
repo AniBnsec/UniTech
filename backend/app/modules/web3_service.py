@@ -244,3 +244,4 @@ class Web3Service:
 
 # Global singleton
 web3_service = Web3Service()
+

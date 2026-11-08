@@ -78,3 +78,4 @@ def test_web3_cryptographic_commitments():
     assert verified is not None
     assert verified["exists"] is True
     assert verified["risk_score"] == 85
+

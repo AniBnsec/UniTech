@@ -134,3 +134,4 @@ def evaluate_certificate_trust(
         })
 
     return findings
+

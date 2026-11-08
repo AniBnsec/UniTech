@@ -286,3 +286,4 @@ class TLSAnalyzer:
                     sock.close()
                 except Exception:
                     pass
+

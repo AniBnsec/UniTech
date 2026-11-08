@@ -273,3 +273,4 @@ class URLAnalyzer:
                     break
 
         return hops, indicators
+

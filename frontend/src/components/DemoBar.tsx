@@ -96,3 +96,4 @@ export const DemoBar: React.FC<DemoBarProps> = ({ demoCases, onSelectCase, isLoa
     </div>
   );
 };
+

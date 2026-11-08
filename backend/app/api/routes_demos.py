@@ -70,3 +70,4 @@ DEMO_CASES = [
 async def get_demo_cases():
     """Returns the 6 mandatory demo test cases for 1-click live evaluation."""
     return DEMO_CASES
+

@@ -184,3 +184,4 @@ export const VerifyPortalTab: React.FC<VerifyPortalTabProps> = ({ initialHash })
     </div>
   );
 };
+
