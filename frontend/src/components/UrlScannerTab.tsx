@@ -3,7 +3,7 @@ import { URLScanResult, ThreatIndicator, IndicatorSeverity } from '../types';
 import { 
   Search, ShieldAlert, ShieldCheck, AlertTriangle, Lock, Unlock, 
   ExternalLink, Layers, ArrowRight, CheckCircle2, XCircle, 
-  Cpu, Award, Copy, Check, Info, FileCode2
+  Cpu, Award, Copy, Check, Info, FileCode2, Mail, Download, CornerDownRight
 } from 'lucide-react';
 
 interface UrlScannerTabProps {
@@ -37,6 +37,17 @@ export const UrlScannerTab: React.FC<UrlScannerTabProps> = ({
     navigator.clipboard.writeText(text);
     setCopiedHash(true);
     setTimeout(() => setCopiedHash(false), 2000);
+  };
+
+  const downloadReportJson = () => {
+    if (!scanResult) return;
+    const blob = new Blob([JSON.stringify(scanResult, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `AegisTrust-Audit-${scanResult.domain}-${scanResult.scan_id}.json`;
+    a.click();
+    URL.revokeObjectURL(url);
   };
 
   const getRiskColor = (score: number, classification: string) => {
@@ -129,7 +140,9 @@ export const UrlScannerTab: React.FC<UrlScannerTabProps> = ({
           </div>
           <div>
             <h4 className="text-sm font-bold text-white uppercase tracking-wider">Executing Multi-Vector Security Inspection</h4>
-            <p className="text-xs text-slate-400 mt-1">Inspecting Punycode & Typosquatting → Tracing Redirects → Auditing TLS & eMudhra CA Trust → Generating On-Chain Commitment</p>
+            <p className="text-xs text-slate-400 mt-1">
+              Punycode & Typosquatting → SSRF Safe Redirects → TLS & eMudhra CA Trust → Passive Headers → Email DMARC → On-Chain Notarization
+            </p>
           </div>
         </div>
       )}
@@ -174,6 +187,13 @@ export const UrlScannerTab: React.FC<UrlScannerTabProps> = ({
                     <span className="text-slate-300">{scanResult.ip_address}</span>
                   </div>
                 )}
+                <button
+                  onClick={downloadReportJson}
+                  className="px-3 py-2 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 text-slate-300 flex items-center justify-center space-x-1.5 transition-colors font-sans text-xs"
+                >
+                  <Download className="w-3.5 h-3.5 text-cyan-400" />
+                  <span>Export JSON Report</span>
+                </button>
               </div>
 
             </div>
@@ -258,87 +278,61 @@ export const UrlScannerTab: React.FC<UrlScannerTabProps> = ({
             )}
           </div>
 
-          {/* Dual Grid: TLS Certificate Audit & Passive Security Headers */}
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          {/* Tri-Grid: TLS Certificate Audit, Passive Headers, and Email Security */}
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
 
             {/* TLS & Web Trust Card */}
             <div className="p-6 rounded-2xl bg-slate-900/80 border border-white/10 space-y-4">
               <div className="flex items-center justify-between">
-                <h4 className="text-sm font-bold text-white uppercase tracking-wider flex items-center space-x-2">
-                  <Lock className="w-4 h-4 text-cyan-400" />
-                  <span>TLS Certificate & Digital Trust</span>
+                <h4 className="text-xs font-bold text-white uppercase tracking-wider flex items-center space-x-1.5">
+                  <Lock className="w-3.5 h-3.5 text-cyan-400" />
+                  <span>TLS Certificate & CA Trust</span>
                 </h4>
                 {scanResult.certificate?.is_expired ? (
-                  <span className="text-[10px] font-bold uppercase px-2 py-0.5 rounded bg-rose-950 text-rose-300 border border-rose-800">
+                  <span className="text-[9px] font-bold uppercase px-2 py-0.5 rounded bg-rose-950 text-rose-300 border border-rose-800">
                     Expired
                   </span>
                 ) : scanResult.certificate ? (
-                  <span className="text-[10px] font-bold uppercase px-2 py-0.5 rounded bg-emerald-950 text-emerald-300 border border-emerald-800">
+                  <span className="text-[9px] font-bold uppercase px-2 py-0.5 rounded bg-emerald-950 text-emerald-300 border border-emerald-800">
                     Active TLS
                   </span>
                 ) : (
-                  <span className="text-[10px] text-slate-400">No TLS Handshake</span>
+                  <span className="text-[9px] text-slate-400">No TLS</span>
                 )}
               </div>
 
               {scanResult.certificate ? (
-                <div className="space-y-3 font-mono text-xs">
-                  <div className="p-3 rounded-xl bg-slate-950/70 border border-white/5 space-y-1.5">
-                    <div className="text-slate-400 text-[11px]">Issuer Organization & CN:</div>
-                    <div className="text-white font-semibold">
-                      {scanResult.certificate.issuer_org || scanResult.certificate.issuer_cn || "Unknown Issuer"}
+                <div className="space-y-2.5 font-mono text-xs">
+                  <div className="p-2.5 rounded-lg bg-slate-950/70 border border-white/5 space-y-1">
+                    <div className="text-slate-400 text-[10px]">Issuer Org & CN:</div>
+                    <div className="text-white font-semibold text-[11px] truncate">
+                      {scanResult.certificate.issuer_org || scanResult.certificate.issuer_cn || "Unknown"}
                     </div>
-                    {scanResult.certificate.is_compromised_ca && (
-                      <div className="text-[11px] text-rose-400 font-bold">
-                        ⚠️ Distrusted intermediate CA hierarchy
-                      </div>
-                    )}
                   </div>
 
-                  <div className="grid grid-cols-2 gap-2 text-[11px]">
-                    <div className="p-2.5 rounded-lg bg-slate-950/50 border border-white/5">
+                  <div className="grid grid-cols-2 gap-1.5 text-[10px]">
+                    <div className="p-2 rounded bg-slate-950/50 border border-white/5">
                       <span className="text-slate-500 block">Public Key</span>
                       <span className="text-slate-200">
                         {scanResult.certificate.public_key_type} ({scanResult.certificate.public_key_bits}-bit)
                       </span>
                     </div>
 
-                    <div className="p-2.5 rounded-lg bg-slate-950/50 border border-white/5">
-                      <span className="text-slate-500 block">Algorithm</span>
-                      <span className="text-slate-200">{scanResult.certificate.signature_algorithm || "SHA-256"}</span>
-                    </div>
-
-                    <div className="p-2.5 rounded-lg bg-slate-950/50 border border-white/5">
+                    <div className="p-2 rounded bg-slate-950/50 border border-white/5">
                       <span className="text-slate-500 block">Expires In</span>
                       <span className={scanResult.certificate.days_until_expiration && scanResult.certificate.days_until_expiration < 0 ? "text-rose-400" : "text-slate-200"}>
                         {scanResult.certificate.days_until_expiration} days
                       </span>
                     </div>
-
-                    <div className="p-2.5 rounded-lg bg-slate-950/50 border border-white/5">
-                      <span className="text-slate-500 block">Cert Transparency (CT)</span>
-                      <span className="text-emerald-400">
-                        {scanResult.certificate.certificate_transparency_present ? "SCT Embedded" : "Missing SCT"}
-                      </span>
-                    </div>
                   </div>
 
-                  {scanResult.certificate.subject_alt_names.length > 0 && (
-                    <div className="p-2.5 rounded-lg bg-slate-950/50 border border-white/5 text-[11px]">
-                      <span className="text-slate-500 block mb-1">Subject Alternative Names (SANs):</span>
-                      <div className="text-slate-300 break-all max-h-16 overflow-y-auto">
-                        {scanResult.certificate.subject_alt_names.slice(0, 5).join(", ")}
-                      </div>
-                    </div>
-                  )}
-
-                  <div className="p-2.5 rounded-lg bg-cyan-950/20 border border-cyan-800/30 text-[11px] text-cyan-300">
-                    <strong>Golden Rule:</strong> HTTPS ensures encrypted transport and host identity verification. It does not validate absence of phishing or fraud.
+                  <div className="p-2 rounded bg-cyan-950/20 border border-cyan-800/30 text-[10px] text-cyan-300">
+                    <strong>Rule:</strong> HTTPS protects transport, not site authenticity.
                   </div>
                 </div>
               ) : (
                 <div className="p-6 rounded-xl bg-slate-950/60 border border-white/5 text-center text-xs text-slate-400">
-                  Target host did not present a standard TLS/HTTPS certificate.
+                  Target host did not present a TLS certificate.
                 </div>
               )}
             </div>
@@ -346,19 +340,19 @@ export const UrlScannerTab: React.FC<UrlScannerTabProps> = ({
             {/* Passive Security Headers Card */}
             <div className="p-6 rounded-2xl bg-slate-900/80 border border-white/10 space-y-4">
               <div className="flex items-center justify-between">
-                <h4 className="text-sm font-bold text-white uppercase tracking-wider flex items-center space-x-2">
-                  <FileCode2 className="w-4 h-4 text-cyan-400" />
-                  <span>Passive Security Headers Audit</span>
+                <h4 className="text-xs font-bold text-white uppercase tracking-wider flex items-center space-x-1.5">
+                  <FileCode2 className="w-3.5 h-3.5 text-cyan-400" />
+                  <span>Security Headers Audit</span>
                 </h4>
-                <span className="text-xs font-mono text-slate-400">Non-Intrusive</span>
+                <span className="text-[10px] font-mono text-slate-400">Passive</span>
               </div>
 
-              <div className="space-y-2.5 max-h-[350px] overflow-y-auto pr-1">
+              <div className="space-y-2 max-h-[280px] overflow-y-auto pr-1">
                 {scanResult.security_headers.map((h, idx) => (
-                  <div key={idx} className="p-3 rounded-xl bg-slate-950/60 border border-white/5 text-xs space-y-1">
+                  <div key={idx} className="p-2.5 rounded-lg bg-slate-950/60 border border-white/5 text-xs space-y-0.5">
                     <div className="flex items-center justify-between">
-                      <span className="font-mono font-semibold text-white">{h.header_name}</span>
-                      <span className={`px-2 py-0.5 rounded text-[10px] font-bold ${
+                      <span className="font-mono font-semibold text-white text-[11px]">{h.header_name}</span>
+                      <span className={`px-1.5 py-0.2 rounded text-[9px] font-bold ${
                         h.status === 'PASS' ? 'bg-emerald-950 text-emerald-300 border border-emerald-800' :
                         h.status === 'WARN' ? 'bg-amber-950 text-amber-300 border border-amber-800' :
                         'bg-rose-950 text-rose-300 border border-rose-800'
@@ -366,22 +360,107 @@ export const UrlScannerTab: React.FC<UrlScannerTabProps> = ({
                         {h.status}
                       </span>
                     </div>
-
-                    <p className="text-[11px] text-slate-400 leading-normal">
+                    <p className="text-[10px] text-slate-400 leading-tight">
                       {h.impact}
                     </p>
-
-                    {h.status !== 'PASS' && (
-                      <div className="text-[10px] font-mono text-cyan-300/80 bg-slate-900 p-2 rounded border border-white/5 mt-1">
-                        <strong>Fix:</strong> {h.remediation}
-                      </div>
-                    )}
                   </div>
                 ))}
               </div>
             </div>
 
+            {/* Email Authentication & Spoofing Card (SPF / DMARC) */}
+            <div className="p-6 rounded-2xl bg-slate-900/80 border border-white/10 space-y-4">
+              <div className="flex items-center justify-between">
+                <h4 className="text-xs font-bold text-white uppercase tracking-wider flex items-center space-x-1.5">
+                  <Mail className="w-3.5 h-3.5 text-cyan-400" />
+                  <span>Email Domain Spoofing Audit</span>
+                </h4>
+                {scanResult.email_security?.spoofing_vulnerable ? (
+                  <span className="text-[9px] font-bold uppercase px-2 py-0.5 rounded bg-rose-950 text-rose-300 border border-rose-800">
+                    Spoofing Vulnerable
+                  </span>
+                ) : (
+                  <span className="text-[9px] font-bold uppercase px-2 py-0.5 rounded bg-emerald-950 text-emerald-300 border border-emerald-800">
+                    Protected
+                  </span>
+                )}
+              </div>
+
+              {scanResult.email_security ? (
+                <div className="space-y-2 font-mono text-xs">
+                  <div className="p-2.5 rounded-lg bg-slate-950/60 border border-white/5 flex items-center justify-between">
+                    <span className="text-[11px] text-slate-400">DMARC Policy:</span>
+                    <span className={`text-[11px] font-bold ${scanResult.email_security.has_dmarc ? 'text-emerald-400' : 'text-rose-400'}`}>
+                      {scanResult.email_security.has_dmarc ? (scanResult.email_security.dmarc_policy || 'Active') : 'Missing'}
+                    </span>
+                  </div>
+
+                  <div className="p-2.5 rounded-lg bg-slate-950/60 border border-white/5 flex items-center justify-between">
+                    <span className="text-[11px] text-slate-400">SPF Record:</span>
+                    <span className={`text-[11px] font-bold ${scanResult.email_security.has_spf ? 'text-emerald-400' : 'text-amber-400'}`}>
+                      {scanResult.email_security.has_spf ? 'Configured' : 'Missing'}
+                    </span>
+                  </div>
+
+                  <div className="p-2.5 rounded-lg bg-slate-950/60 border border-white/5 flex items-center justify-between">
+                    <span className="text-[11px] text-slate-400">MX Mail Servers:</span>
+                    <span className="text-[11px] text-slate-200">
+                      {scanResult.email_security.has_mx ? `${scanResult.email_security.mx_records?.length || 1} Servers` : 'None'}
+                    </span>
+                  </div>
+
+                  <p className="text-[10px] text-slate-400 font-sans leading-tight pt-1">
+                    Without DMARC enforcement (p=reject), attackers can forge this domain in spear-phishing emails.
+                  </p>
+                </div>
+              ) : (
+                <div className="p-6 text-center text-xs text-slate-500">
+                  No email records queried.
+                </div>
+              )}
+            </div>
+
           </div>
+
+          {/* Safe Redirect Chain Timeline */}
+          {scanResult.redirect_chain.length > 0 && (
+            <div className="p-6 rounded-2xl bg-slate-900/80 border border-white/10 space-y-3">
+              <h4 className="text-xs font-bold text-white uppercase tracking-wider flex items-center space-x-1.5">
+                <CornerDownRight className="w-3.5 h-3.5 text-cyan-400" />
+                <span>SSRF-Guarded Redirect Trace ({scanResult.redirect_chain.length} Hops)</span>
+              </h4>
+
+              <div className="space-y-2">
+                {scanResult.redirect_chain.map((hop, idx) => (
+                  <div key={idx} className="p-3 rounded-xl bg-slate-950/80 border border-white/5 flex flex-col sm:flex-row sm:items-center justify-between text-xs font-mono gap-2">
+                    <div className="flex items-center space-x-2 truncate">
+                      <span className="w-5 h-5 rounded-full bg-cyan-950 text-cyan-300 border border-cyan-800 flex items-center justify-center text-[10px] font-bold flex-shrink-0">
+                        {hop.hop_number}
+                      </span>
+                      <span className="text-slate-300 truncate">{hop.url}</span>
+                    </div>
+
+                    <div className="flex items-center space-x-3 text-[11px] flex-shrink-0">
+                      <span className={`px-2 py-0.5 rounded font-bold ${
+                        hop.status_code >= 300 && hop.status_code < 400 ? 'bg-amber-950 text-amber-300' :
+                        hop.status_code === 200 ? 'bg-emerald-950 text-emerald-300' : 'bg-slate-800 text-slate-300'
+                      }`}>
+                        HTTP {hop.status_code}
+                      </span>
+                      {hop.ip_address && (
+                        <span className="text-slate-400">{hop.ip_address}</span>
+                      )}
+                      {hop.is_cross_domain && (
+                        <span className="text-[10px] font-sans px-1.5 py-0.5 rounded bg-rose-950 text-rose-300 border border-rose-800">
+                          Cross-Domain Hop
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
 
           {/* Web3 On-Chain Cryptographic Proof Card */}
           {scanResult.on_chain_proof && (
@@ -452,4 +531,3 @@ export const UrlScannerTab: React.FC<UrlScannerTabProps> = ({
     </div>
   );
 };
-

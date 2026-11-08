@@ -11,6 +11,7 @@ from app.schemas.threat import (
 from app.modules.url_analyzer import URLAnalyzer, normalize_target_url
 from app.modules.tls_analyzer import TLSAnalyzer
 from app.modules.security_headers import SecurityHeadersAuditor
+from app.modules.email_security import EmailSecurityAuditor
 from app.modules.ai_scam_analyzer import AIScamAnalyzer
 from app.modules.threat_correlator import correlator
 from app.modules.web3_service import web3_service
@@ -49,8 +50,11 @@ async def analyze_url_endpoint(request: URLScanRequest):
     # 4. Passive Website Security Headers Audit
     security_headers = await SecurityHeadersAuditor.audit_url_headers(norm_url)
 
+    # 5. Email Domain Authentication (SPF/DMARC) Audit
+    email_audit, email_indicators = EmailSecurityAuditor.audit_domain_email_security(domain)
+
     # Combine all threat indicators
-    all_indicators = lexical_indicators + redirect_indicators + tls_indicators
+    all_indicators = lexical_indicators + redirect_indicators + tls_indicators + email_indicators
 
     # 5. Risk Assessment Engine
     risk_score, classification, confidence, verdict, explanation, precautions = RiskEngine.calculate_url_risk(
@@ -76,6 +80,7 @@ async def analyze_url_endpoint(request: URLScanRequest):
         redirect_chain=hops,
         certificate=cert_details,
         security_headers=security_headers,
+        email_security=email_audit,
         recommended_precautions=precautions,
         limitations="Passive analysis reflects publicly observable signals and cryptographic assertions. The absence of flags does not guarantee total security."
     )

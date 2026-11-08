@@ -1,6 +1,9 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { ThreatGraphData, GraphNode } from '../types';
-import { Network, Server, Globe, Lock, Wallet, Flag, ShieldAlert, Info, RefreshCw } from 'lucide-react';
+import { 
+  Network, Server, Globe, Lock, Wallet, Flag, ShieldAlert, 
+  Info, RefreshCw, ZoomIn, ZoomOut, RotateCcw, Filter
+} from 'lucide-react';
 
 interface ThreatGraphTabProps {
   graphData: ThreatGraphData | null;
@@ -14,6 +17,8 @@ export const ThreatGraphTab: React.FC<ThreatGraphTabProps> = ({
   isLoading
 }) => {
   const [selectedNode, setSelectedNode] = useState<GraphNode | null>(null);
+  const [filterType, setFilterType] = useState<string>('ALL');
+  const [zoomLevel, setZoomLevel] = useState<number>(1);
 
   useEffect(() => {
     if (graphData && graphData.nodes.length > 0 && !selectedNode) {
@@ -21,25 +26,48 @@ export const ThreatGraphTab: React.FC<ThreatGraphTabProps> = ({
     }
   }, [graphData]);
 
-  const getNodeIcon = (type: string) => {
-    switch (type) {
-      case 'CAMPAIGN': return <Flag className="w-4 h-4 text-rose-400" />;
-      case 'IP': return <Server className="w-4 h-4 text-orange-400" />;
-      case 'DOMAIN': return <Globe className="w-4 h-4 text-cyan-400" />;
-      case 'CA': return <Lock className="w-4 h-4 text-amber-400" />;
-      case 'PAYMENT': return <Wallet className="w-4 h-4 text-purple-400" />;
-      default: return <ShieldAlert className="w-4 h-4 text-slate-400" />;
+  // Compute 2D node coordinates in a visual hub-and-spoke layout
+  const nodePositions = useMemo(() => {
+    if (!graphData || graphData.nodes.length === 0) return {};
+    const positions: Record<string, { x: number; y: number }> = {};
+    const centerX = 360;
+    const centerY = 240;
+
+    // Find central campaign node if exists
+    const campaignNode = graphData.nodes.find(n => n.node_type === 'CAMPAIGN');
+    if (campaignNode) {
+      positions[campaignNode.id] = { x: centerX, y: centerY };
     }
+
+    const otherNodes = graphData.nodes.filter(n => n.node_type !== 'CAMPAIGN');
+    const total = otherNodes.length;
+    const radius = 170;
+
+    otherNodes.forEach((node, idx) => {
+      const angle = (idx / total) * 2 * Math.PI - Math.PI / 2;
+      positions[node.id] = {
+        x: centerX + radius * Math.cos(angle),
+        y: centerY + radius * Math.sin(angle)
+      };
+    });
+
+    return positions;
+  }, [graphData]);
+
+  const getNodeColor = (type: string, risk: string) => {
+    if (type === 'CAMPAIGN') return '#ff0055'; // neon rose
+    if (type === 'IP') return '#ff7a00';       // orange
+    if (type === 'DOMAIN') return '#00f0ff';   // cyan
+    if (type === 'CA') return '#ffb700';       // amber
+    if (type === 'PAYMENT') return '#9d4edd';  // purple
+    return '#64748b';
   };
 
-  const getNodeBorder = (risk: string) => {
-    switch (risk) {
-      case 'CRITICAL': return 'border-rose-500/80 bg-rose-950/40 text-rose-200';
-      case 'HIGH': return 'border-orange-500/80 bg-orange-950/40 text-orange-200';
-      case 'MEDIUM': return 'border-amber-500/80 bg-amber-950/40 text-amber-200';
-      default: return 'border-cyan-500/60 bg-cyan-950/30 text-cyan-200';
-    }
-  };
+  const filteredNodes = useMemo(() => {
+    if (!graphData) return [];
+    if (filterType === 'ALL') return graphData.nodes;
+    return graphData.nodes.filter(n => n.node_type === filterType);
+  }, [graphData, filterType]);
 
   return (
     <div className="space-y-6">
@@ -77,72 +105,214 @@ export const ThreatGraphTab: React.FC<ThreatGraphTabProps> = ({
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
 
         {/* Visual Topology Canvas */}
-        <div className="lg:col-span-2 p-6 rounded-2xl bg-slate-950/90 border border-white/10 min-h-[460px] relative flex flex-col justify-between overflow-hidden">
+        <div className="lg:col-span-2 p-6 rounded-2xl bg-slate-950/90 border border-white/10 min-h-[520px] relative flex flex-col justify-between overflow-hidden">
           
-          {/* Subtle Grid Background Pattern */}
-          <div className="absolute inset-0 opacity-15 pointer-events-none" style={{
-            backgroundImage: 'radial-gradient(circle, #00f0ff 1px, transparent 1px)',
-            backgroundSize: '24px 24px'
-          }} />
-
-          {/* Node Grid Layout */}
-          <div className="relative z-10 space-y-6">
-            <div className="flex items-center justify-between text-xs font-mono text-slate-400 border-b border-white/5 pb-2">
-              <span>Topological Nodes ({graphData?.nodes.length || 0})</span>
-              <span>Edges: Shared Infrastructure & Certificates</span>
+          {/* Controls Bar */}
+          <div className="flex flex-wrap items-center justify-between gap-2 z-20 pb-3 border-b border-white/5">
+            <div className="flex items-center space-x-1.5 text-xs font-mono">
+              <Filter className="w-3.5 h-3.5 text-slate-400" />
+              <button
+                onClick={() => setFilterType('ALL')}
+                className={`px-2.5 py-1 rounded-md text-[11px] font-semibold transition-all ${
+                  filterType === 'ALL' ? 'bg-cyan-500/20 text-cyan-300 border border-cyan-500/40' : 'text-slate-400 hover:text-white'
+                }`}
+              >
+                All
+              </button>
+              <button
+                onClick={() => setFilterType('DOMAIN')}
+                className={`px-2.5 py-1 rounded-md text-[11px] font-semibold transition-all ${
+                  filterType === 'DOMAIN' ? 'bg-cyan-500/20 text-cyan-300 border border-cyan-500/40' : 'text-slate-400 hover:text-white'
+                }`}
+              >
+                Domains
+              </button>
+              <button
+                onClick={() => setFilterType('IP')}
+                className={`px-2.5 py-1 rounded-md text-[11px] font-semibold transition-all ${
+                  filterType === 'IP' ? 'bg-orange-500/20 text-orange-300 border border-orange-500/40' : 'text-slate-400 hover:text-white'
+                }`}
+              >
+                IPs
+              </button>
+              <button
+                onClick={() => setFilterType('CA')}
+                className={`px-2.5 py-1 rounded-md text-[11px] font-semibold transition-all ${
+                  filterType === 'CA' ? 'bg-amber-500/20 text-amber-300 border border-amber-500/40' : 'text-slate-400 hover:text-white'
+                }`}
+              >
+                CAs
+              </button>
+              <button
+                onClick={() => setFilterType('PAYMENT')}
+                className={`px-2.5 py-1 rounded-md text-[11px] font-semibold transition-all ${
+                  filterType === 'PAYMENT' ? 'bg-purple-500/20 text-purple-300 border border-purple-500/40' : 'text-slate-400 hover:text-white'
+                }`}
+              >
+                Wallets
+              </button>
             </div>
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
-              {graphData?.nodes.map((node) => {
-                const isSelected = selectedNode?.id === node.id;
-                return (
-                  <div
-                    key={node.id}
-                    onClick={() => setSelectedNode(node)}
-                    className={`p-3.5 rounded-xl border transition-all cursor-pointer ${getNodeBorder(node.risk_level)} ${
-                      isSelected ? 'ring-2 ring-cyan-400 scale-[1.02] shadow-xl' : 'hover:scale-[1.01]'
-                    }`}
-                  >
-                    <div className="flex items-center justify-between mb-1.5">
-                      <div className="flex items-center space-x-1.5">
-                        {getNodeIcon(node.node_type)}
-                        <span className="text-[10px] font-mono uppercase font-bold tracking-wider">
-                          {node.node_type}
-                        </span>
-                      </div>
-                      <span className="text-[9px] font-mono px-1.5 py-0.5 rounded bg-black/40 border border-white/10">
-                        {node.risk_level}
-                      </span>
-                    </div>
-                    <div className="text-xs font-bold text-white truncate">
-                      {node.label}
-                    </div>
-                  </div>
-                );
-              })}
+            <div className="flex items-center space-x-1">
+              <button
+                onClick={() => setZoomLevel(prev => Math.min(prev + 0.15, 1.6))}
+                className="p-1.5 rounded bg-slate-900 hover:bg-slate-800 text-slate-300"
+                title="Zoom In"
+              >
+                <ZoomIn className="w-3.5 h-3.5" />
+              </button>
+              <button
+                onClick={() => setZoomLevel(prev => Math.max(prev - 0.15, 0.7))}
+                className="p-1.5 rounded bg-slate-900 hover:bg-slate-800 text-slate-300"
+                title="Zoom Out"
+              >
+                <ZoomOut className="w-3.5 h-3.5" />
+              </button>
+              <button
+                onClick={() => setZoomLevel(1)}
+                className="p-1.5 rounded bg-slate-900 hover:bg-slate-800 text-slate-300"
+                title="Reset View"
+              >
+                <RotateCcw className="w-3.5 h-3.5" />
+              </button>
             </div>
-
-            {/* Edge Connections List */}
-            <div className="pt-4 border-t border-white/5">
-              <h5 className="text-[11px] font-bold uppercase tracking-wider text-slate-500 mb-2">Correlated Attack Vectors</h5>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs font-mono">
-                {graphData?.edges.map((edge, idx) => (
-                  <div key={idx} className="p-2 rounded bg-slate-900/60 border border-white/5 flex items-center justify-between text-[11px]">
-                    <span className="text-cyan-300 truncate max-w-[110px]">{edge.source}</span>
-                    <span className="text-[9px] uppercase px-1.5 py-0.5 bg-black/50 text-slate-400 rounded">
-                      {edge.relation}
-                    </span>
-                    <span className="text-purple-300 truncate max-w-[110px]">{edge.target}</span>
-                  </div>
-                ))}
-              </div>
-            </div>
-
           </div>
 
-          <div className="relative z-10 text-[11px] text-slate-500 font-mono mt-4 flex items-center space-x-2">
-            <Info className="w-3.5 h-3.5" />
-            <span>Click any entity card to inspect threat intelligence telemetry and attribution clues.</span>
+          {/* SVG Canvas */}
+          <div className="relative flex-1 flex items-center justify-center overflow-hidden my-2">
+            <svg
+              viewBox="0 0 720 480"
+              className="w-full h-full max-h-[460px] transition-transform duration-300 ease-out select-none"
+              style={{ transform: `scale(${zoomLevel})` }}
+            >
+              <defs>
+                <linearGradient id="edgeGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+                  <stop offset="0%" stopColor="#00f0ff" stopOpacity="0.6" />
+                  <stop offset="100%" stopColor="#ff0055" stopOpacity="0.6" />
+                </linearGradient>
+                <filter id="glow" x="-20%" y="-20%" width="140%" height="140%">
+                  <feGaussianBlur stdDeviation="3" result="blur" />
+                  <feComposite in="SourceGraphic" in2="blur" operator="over" />
+                </filter>
+              </defs>
+
+              {/* Concentric Radar Rings */}
+              <circle cx="360" cy="240" r="80" fill="none" stroke="rgba(255,255,255,0.04)" strokeDasharray="4 4" />
+              <circle cx="360" cy="240" r="170" fill="none" stroke="rgba(255,255,255,0.06)" strokeDasharray="6 6" />
+
+              {/* Edges / Lines between nodes */}
+              {graphData?.edges.map((edge, idx) => {
+                const src = nodePositions[edge.source];
+                const dst = nodePositions[edge.target];
+                if (!src || !dst) return null;
+
+                const midX = (src.x + dst.x) / 2;
+                const midY = (src.y + dst.y) / 2;
+
+                return (
+                  <g key={idx}>
+                    <line
+                      x1={src.x}
+                      y1={src.y}
+                      x2={dst.x}
+                      y2={dst.y}
+                      stroke="url(#edgeGrad)"
+                      strokeWidth="1.8"
+                      strokeOpacity="0.5"
+                    />
+                    {/* Animated Pulse along the edge */}
+                    <circle r="2.5" fill="#00f0ff">
+                      <animateMotion
+                        path={`M ${src.x} ${src.y} L ${dst.x} ${dst.y}`}
+                        dur={`${2.5 + (idx % 3)}s`}
+                        repeatCount="indefinite"
+                      />
+                    </circle>
+                    {/* Edge Label */}
+                    <text
+                      x={midX}
+                      y={midY - 4}
+                      fill="#94a3b8"
+                      fontSize="9"
+                      fontFamily="monospace"
+                      textAnchor="middle"
+                    >
+                      {edge.relation}
+                    </text>
+                  </g>
+                );
+              })}
+
+              {/* Render Nodes */}
+              {filteredNodes.map((node) => {
+                const pos = nodePositions[node.id] || { x: 360, y: 240 };
+                const isSelected = selectedNode?.id === node.id;
+                const color = getNodeColor(node.node_type, node.risk_level);
+
+                return (
+                  <g
+                    key={node.id}
+                    className="cursor-pointer transition-all"
+                    onClick={() => setSelectedNode(node)}
+                  >
+                    {/* Pulsing Selection Outer Ring */}
+                    {isSelected && (
+                      <circle
+                        cx={pos.x}
+                        cy={pos.y}
+                        r="28"
+                        fill="none"
+                        stroke={color}
+                        strokeWidth="2"
+                        opacity="0.8"
+                        filter="url(#glow)"
+                      />
+                    )}
+
+                    {/* Node Core Circle */}
+                    <circle
+                      cx={pos.x}
+                      cy={pos.y}
+                      r={node.node_type === 'CAMPAIGN' ? '22' : '16'}
+                      fill="#070b14"
+                      stroke={color}
+                      strokeWidth={isSelected ? '3' : '2'}
+                      filter="url(#glow)"
+                    />
+
+                    {/* Center Dot */}
+                    <circle
+                      cx={pos.x}
+                      cy={pos.y}
+                      r="4"
+                      fill={color}
+                    />
+
+                    {/* Label */}
+                    <text
+                      x={pos.x}
+                      y={pos.y + (node.node_type === 'CAMPAIGN' ? 34 : 26)}
+                      fill="#f1f5f9"
+                      fontSize="10"
+                      fontWeight="bold"
+                      fontFamily="monospace"
+                      textAnchor="middle"
+                      className="pointer-events-none select-none"
+                    >
+                      {node.label.length > 22 ? node.label.slice(0, 20) + '...' : node.label}
+                    </text>
+                  </g>
+                );
+              })}
+            </svg>
+          </div>
+
+          <div className="text-[11px] text-slate-500 font-mono flex items-center justify-between border-t border-white/5 pt-2">
+            <span className="flex items-center space-x-1.5">
+              <Info className="w-3.5 h-3.5 text-cyan-400" />
+              <span>Click any node in the SVG topology to inspect attribution forensics.</span>
+            </span>
+            <span>{graphData?.nodes.length || 0} Entities Correlated</span>
           </div>
         </div>
 
@@ -188,7 +358,7 @@ export const ThreatGraphTab: React.FC<ThreatGraphTabProps> = ({
               )}
 
               <div className="p-3 rounded-xl bg-cyan-950/20 border border-cyan-800/30 text-[11px] text-cyan-300 leading-relaxed font-sans">
-                <strong>Campaign Correlation:</strong> Individual phishing lures often appear isolated to victims, but backend analysis reveals shared hosting ASNs, common TLS issuers, and unified money-mule payment vectors.
+                <strong>Campaign Correlation:</strong> Individual phishing lures often appear isolated to victims, but backend graph correlation links shared hosting ASNs, common TLS issuers, and unified money-mule payment vectors.
               </div>
             </div>
           ) : (
@@ -203,4 +373,3 @@ export const ThreatGraphTab: React.FC<ThreatGraphTabProps> = ({
     </div>
   );
 };
-

@@ -83,6 +83,7 @@ export interface URLScanResult {
   redirect_chain: RedirectHop[];
   certificate?: CertificateDetails;
   security_headers: SecurityHeaderFinding[];
+  email_security?: Record<string, any>;
   recommended_precautions: string[];
   limitations: string;
   on_chain_proof?: OnChainProof;

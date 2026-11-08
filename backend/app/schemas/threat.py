@@ -93,6 +93,7 @@ class URLScanResult(BaseModel):
     redirect_chain: List[RedirectHop] = []
     certificate: Optional[CertificateDetails] = None
     security_headers: List[SecurityHeaderFinding] = []
+    email_security: Optional[Dict[str, Any]] = None
     recommended_precautions: List[str] = []
     limitations: str
     on_chain_proof: Optional[OnChainProof] = None
