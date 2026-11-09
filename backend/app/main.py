@@ -1,61 +1,131 @@
-from fastapi import FastAPI
+"""Main FastAPI application."""
+
+from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
+from contextlib import asynccontextmanager
+import time
+import logging
 
-from app.core.config import settings
-from app.api.routes_analyze import router as analyze_router
-from app.api.routes_correlation import router as correlation_router
-from app.api.routes_web3 import router as web3_router
-from app.api.routes_demos import router as demos_router
+from app.config import settings
+from app.database import init_db
+from app.api import auth, analyze, investigations, threats, blockchain, dashboard
 
+# Configure logging
+logging.basicConfig(
+    level=logging.INFO if settings.DEBUG else logging.WARNING,
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+)
+logger = logging.getLogger(__name__)
+
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    """Application lifespan events."""
+    # Startup
+    logger.info("Starting ThreatShield API...")
+    try:
+        init_db()
+        logger.info("Database initialized successfully")
+    except Exception as e:
+        logger.error(f"Failed to initialize database: {e}")
+    
+    yield
+    
+    # Shutdown
+    logger.info("Shutting down ThreatShield API...")
+
+
+# Create FastAPI app
 app = FastAPI(
-    title=settings.PROJECT_NAME,
-    version=settings.VERSION,
-    description="Intelligent Digital Threat Detection, TLS Trust Chain Auditing, and Decentralized Threat Intelligence Platform.",
+    title=settings.APP_NAME,
+    version=settings.APP_VERSION,
+    description="AI-Powered Web Threat Detection & Digital Trust Intelligence API",
     docs_url="/docs",
-    redoc_url="/redoc"
+    redoc_url="/redoc",
+    lifespan=lifespan,
 )
 
-# CORS Configuration
+# CORS middleware
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=settings.CORS_ORIGINS,
+    allow_origins=settings.cors_origins_list,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
-# Register Sub-routers
-app.include_router(analyze_router, prefix=settings.API_V1_STR)
-app.include_router(correlation_router, prefix=settings.API_V1_STR)
-app.include_router(web3_router, prefix=settings.API_V1_STR)
-app.include_router(demos_router, prefix=settings.API_V1_STR)
 
-@app.get("/")
-async def root():
-    return {
-        "platform": settings.PROJECT_NAME,
-        "version": settings.VERSION,
-        "status": "OPERATIONAL",
-        "endpoints": {
-            "docs": "/docs",
-            "analyze_url": f"{settings.API_V1_STR}/analyze/url",
-            "analyze_message": f"{settings.API_V1_STR}/analyze/message",
-            "threat_graph": f"{settings.API_V1_STR}/threats/graph",
-            "blockchain_verify": f"{settings.API_V1_STR}/blockchain/verify/{{hash}}",
-            "demo_cases": f"{settings.API_V1_STR}/demo/cases"
+# Request logging middleware
+@app.middleware("http")
+async def log_requests(request: Request, call_next):
+    """Log all requests and measure response time."""
+    start_time = time.time()
+    
+    response = await call_next(request)
+    
+    process_time = time.time() - start_time
+    logger.info(
+        f"{request.method} {request.url.path} - "
+        f"Status: {response.status_code} - "
+        f"Time: {process_time:.3f}s"
+    )
+    
+    response.headers["X-Process-Time"] = str(process_time)
+    return response
+
+
+# Exception handlers
+@app.exception_handler(Exception)
+async def global_exception_handler(request: Request, exc: Exception):
+    """Global exception handler."""
+    logger.error(f"Global exception: {exc}", exc_info=True)
+    return JSONResponse(
+        status_code=500,
+        content={
+            "error": "Internal server error",
+            "message": str(exc) if settings.DEBUG else "An unexpected error occurred"
         }
-    }
+    )
 
+
+# Health check endpoint
 @app.get("/health")
 async def health_check():
+    """Health check endpoint."""
     return {
         "status": "healthy",
-        "engines": {
-            "url_analyzer": "READY",
-            "tls_ca_auditor": "READY",
-            "ai_scam_detector": "READY",
-            "correlation_graph": "READY",
-            "web3_registry": "READY"
-        }
+        "version": settings.APP_VERSION,
+        "environment": settings.APP_ENV
     }
 
+
+# Root endpoint
+@app.get("/")
+async def root():
+    """Root endpoint."""
+    return {
+        "name": settings.APP_NAME,
+        "version": settings.APP_VERSION,
+        "docs": "/docs",
+        "health": "/health"
+    }
+
+
+# Include routers
+app.include_router(auth.router, prefix="/api/auth", tags=["Authentication"])
+app.include_router(analyze.router, prefix="/api/analyze", tags=["Analysis"])
+app.include_router(investigations.router, prefix="/api/investigations", tags=["Investigations"])
+app.include_router(threats.router, prefix="/api/threats", tags=["Threat Intelligence"])
+app.include_router(blockchain.router, prefix="/api/blockchain", tags=["Blockchain"])
+app.include_router(dashboard.router, prefix="/api/dashboard", tags=["Dashboard"])
+
+
+if __name__ == "__main__":
+    import uvicorn
+    uvicorn.run(
+        "app.main:app",
+        host="0.0.0.0",
+        port=8000,
+        reload=settings.DEBUG
+    )

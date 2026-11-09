@@ -1,29 +1,68 @@
-# Python
-venv/
-__pycache__/
-*.pyc
-*.pyo
-.pytest_cache/
-.coverage
-htmlcov/
-
-# Node & Frontend
+# Dependencies
 node_modules/
 frontend/node_modules/
-frontend/dist/
-contracts/node_modules/
-contracts/artifacts/
-contracts/cache/
-contracts/typechain-types/
+blockchain/node_modules/
 
-# Environment & Logs
+# Environment variables
 .env
-*.log
-npm-debug.log*
-yarn-debug.log*
-yarn-error.log*
+.env.local
+.env.*.local
+frontend/.env.local
+backend/.env
+blockchain/.env
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+backend/venv/
+backend/.venv/
+*.egg-info/
+dist/
+build/
+
+# Next.js
+frontend/.next/
+frontend/out/
+frontend/.next
+
+# Testing
+.coverage
+htmlcov/
+.pytest_cache/
+coverage/
+
+# IDEs
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
 
 # OS
 .DS_Store
 Thumbs.db
 
+# Logs
+*.log
+logs/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Database
+*.db
+*.sqlite
+*.sqlite3
+
+# Blockchain
+blockchain/artifacts/
+blockchain/cache/
+blockchain/typechain-types/
+
+# Misc
+.cache/
+temp/
+tmp/
